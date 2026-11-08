@@ -56,6 +56,8 @@ async function membership(req:Request,projectId:string,write=false){
   const member=await db.projectMember.findUnique({where:{projectId_userId:{projectId,userId:req.user!.id}}});
   return !!member && (!write || member.role!=='VIEWER');
 }
+const checklistSchema=z.array(z.object({id:z.string().uuid(),text:z.string().trim().min(1).max(300),done:z.boolean()})).max(100);
+const dueSchema=z.string().datetime({offset:true}).nullable();
 const deny=(res:Response)=>res.status(403).json({error:'Insufficient permissions'});
 app.get('/api/v1/auth/me',(req,res)=>res.json(req.user));
 app.post('/api/v1/auth/logout',asyncRoute(async(req,res)=>{
@@ -96,28 +98,43 @@ app.post('/api/v1/projects/:id/members',asyncRoute(async(req,res)=>{
 }));
 app.get('/api/v1/projects/:id/tasks',asyncRoute(async(req,res)=>{
   if(!await membership(req,req.params.id))return deny(res);
-  res.json(await db.task.findMany({where:{projectId:req.params.id},orderBy:{position:'asc'},include:{assignee:{select:{id:true,fullName:true}},column:{select:{isTerminal:true}}}}));
+  res.json(await db.task.findMany({where:{projectId:req.params.id},orderBy:{position:'asc'},include:{assignee:{select:{id:true,fullName:true}},_count:{select:{comments:true}},column:{select:{isTerminal:true}}}}));
 }));
 app.post('/api/v1/projects/:id/tasks',asyncRoute(async(req,res)=>{
   if(!await membership(req,req.params.id,true))return deny(res);
-  const x=z.object({title:z.string().min(1).max(255),description:z.string().max(10000).default(''),priority:z.enum(['LOW','NORMAL','HIGH','CRITICAL']).default('NORMAL'),columnId:z.string().uuid(),assigneeId:z.string().uuid().nullable().optional()}).parse(req.body);
+  const x=z.object({title:z.string().min(1).max(255),description:z.string().max(10000).default(''),priority:z.enum(['LOW','NORMAL','HIGH','CRITICAL']).default('NORMAL'),columnId:z.string().uuid(),assigneeId:z.string().uuid().nullable().optional(),dueAt:dueSchema.optional(),checklist:checklistSchema.optional()}).parse(req.body);
   const column=await db.kanbanColumn.findUnique({where:{id:x.columnId}});
   if(column?.projectId!==req.params.id){res.status(400).json({error:'Column belongs to another project'});return;}
   if(x.assigneeId && !await db.projectMember.findUnique({where:{projectId_userId:{projectId:req.params.id,userId:x.assigneeId}}})){res.status(400).json({error:'Assignee is not a member'});return;}
   const count=await db.task.count({where:{columnId:x.columnId}});
-  res.status(201).json(await db.task.create({data:{...x,projectId:req.params.id,reporterId:req.user!.id,position:count}}));
+  res.status(201).json(await db.task.create({data:{...x,dueAt:x.dueAt?new Date(x.dueAt):null,checklist:x.checklist||[],projectId:req.params.id,reporterId:req.user!.id,position:count}}));
 }));
 app.patch('/api/v1/tasks/:id',asyncRoute(async(req,res)=>{
   const task=await db.task.findUnique({where:{id:req.params.id}});
   if(!task){res.status(404).json({error:'Not found'});return;}
   if(!await membership(req,task.projectId,true))return deny(res);
-  const x=z.object({title:z.string().min(1).max(255).optional(),description:z.string().max(10000).optional(),priority:z.enum(['LOW','NORMAL','HIGH','CRITICAL']).optional(),columnId:z.string().uuid().optional(),version:z.number().int().min(1)}).parse(req.body);
+  const x=z.object({title:z.string().min(1).max(255).optional(),description:z.string().max(10000).optional(),priority:z.enum(['LOW','NORMAL','HIGH','CRITICAL']).optional(),columnId:z.string().uuid().optional(),assigneeId:z.string().uuid().nullable().optional(),dueAt:dueSchema.optional(),checklist:checklistSchema.optional(),version:z.number().int().min(1)}).parse(req.body);
   if(x.columnId){const column=await db.kanbanColumn.findUnique({where:{id:x.columnId}});if(column?.projectId!==task.projectId){res.status(400).json({error:'Wrong project column'});return;}}
+  if(x.assigneeId && !await db.projectMember.findUnique({where:{projectId_userId:{projectId:task.projectId,userId:x.assigneeId}}})){res.status(400).json({error:'Assignee is not a member'});return;}
   const {version,...patch}=x;
   const col=x.columnId?await db.kanbanColumn.findUnique({where:{id:x.columnId}}):null;
-  const result=await db.task.updateMany({where:{id:task.id,version},data:{...patch,version:{increment:1},...(col?{completedAt:col.isTerminal?new Date():null}:{})}});
+  const result=await db.task.updateMany({where:{id:task.id,version},data:{...patch,...('dueAt' in patch?{dueAt:patch.dueAt?new Date(patch.dueAt!):null}:{}),version:{increment:1},...(col?{completedAt:col.isTerminal?new Date():null}:{})}});
   if(!result.count){res.status(409).json({error:'Outdated version'});return;}
   res.json(await db.task.findUnique({where:{id:task.id}}));
+}));
+app.get('/api/v1/tasks/:id/comments',asyncRoute(async(req,res)=>{
+  const task=await db.task.findUnique({where:{id:req.params.id},select:{projectId:true}});
+  if(!task){res.status(404).json({error:'Not found'});return;}
+  if(!await membership(req,task.projectId))return deny(res);
+  res.json(await db.taskComment.findMany({where:{taskId:req.params.id},orderBy:{createdAt:'asc'},include:{author:{select:{id:true,fullName:true}}}}));
+}));
+app.post('/api/v1/tasks/:id/comments',asyncRoute(async(req,res)=>{
+  const task=await db.task.findUnique({where:{id:req.params.id},select:{projectId:true}});
+  if(!task){res.status(404).json({error:'Not found'});return;}
+  if(!await membership(req,task.projectId,true))return deny(res);
+  const {body}=z.object({body:z.string().trim().min(1).max(5000)}).parse(req.body);
+  const comment=await db.taskComment.create({data:{taskId:req.params.id,authorId:req.user!.id,body},include:{author:{select:{id:true,fullName:true}}}});
+  res.status(201).json(comment);
 }));
 app.get('/api/v1/boards/:id',asyncRoute(async(req,res)=>{
   const board=await db.board.findUnique({where:{id:req.params.id},include:{nodes:true,edges:true}});
