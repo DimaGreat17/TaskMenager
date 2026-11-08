@@ -40,3 +40,8 @@
 - Первичная миграция подготовлена, но её применение пока не проверено на PostgreSQL в этой среде.
 
 См. [docs/ROADMAP.md](docs/ROADMAP.md).
+
+
+## Windows без Docker
+
+[Инструкция по запуску](docs/WINDOWS_LOCAL.md): скрипты `scripts/setup-local.ps1` и `scripts/start-local.ps1`.

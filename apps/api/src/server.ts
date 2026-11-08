@@ -167,4 +167,4 @@ app.use((err:unknown,_req:Request,res:Response,_next:NextFunction)=>{
   console.error(err);res.status(500).json({error:'Internal server error'});
 });
 const port=Number(process.env.PORT||3001);
-app.listen(port,'0.0.0.0',()=>console.log(`API listening on ${port}`));
+app.listen(port,process.env.HOST||'0.0.0.0',()=>console.log(`API listening on ${port}`));

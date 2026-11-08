@@ -1,0 +1,45 @@
+# Запуск TaskMenager на Windows без Docker
+
+## Что установить
+
+- Node.js **22+** и npm: https://nodejs.org/
+- PostgreSQL **17+**, вместе с command line tools (psql), порт **5432**: https://www.postgresql.org/download/windows/
+- Git (если нет): https://git-scm.com/
+
+Понадобится пароль пользователя PostgreSQL с правом создавать базу данных (обычно postgres).
+
+## Первый запуск
+
+Откройте PowerShell:
+
+```powershell
+git clone https://github.com/DimaGreat17/TaskMenager.git
+cd TaskMenager
+powershell -ExecutionPolicy Bypass -File .\scripts\setup-local.ps1
+```
+
+Скрипт запросит логин и пароль PostgreSQL, создаст базу `taskboard`, установит пакеты, применит миграции и создаст администратора со случайным паролем. Пароль администратора будет показан в окне PowerShell при первой подготовке и сохранён в `apps/api/.env`. Этот файл не загружается в GitHub.
+
+Если база уже создана, скрипт использует её. Если postgres использует нестандартный порт, настройте `apps/api/.env` и подготовьте БД вручную.
+
+## Каждый следующий запуск
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\scripts\start-local.ps1
+```
+
+Вход: http://localhost:5173 (логин `admin`, пароль из настройки).
+Проверка API: http://localhost:3001/api/health.
+
+Закрытие: Ctrl+C в двух открывшихся окнах.
+
+## Диагностика
+
+- `node/npm not found`: установите Node.js, затем откройте новый терминал.
+- Prisma P1001: служба PostgreSQL не запущена или порт другой.
+- Prisma P1000: неверные данные подключения PostgreSQL.
+- `psql.exe not found`: добавьте PostgreSQL bin в PATH или установите command line tools.
+- `EADDRINUSE`: заняты порты 3001 или 5173.
+- Ошибка миграции: убедитесь, что у пользователя есть права на БД.
+
+Приложение в этом режиме доступно **только с вашего ПК** (127.0.0.1). Это тестовая версия, не публикуйте порты напрямую в LAN: для эксплуатации нужны HTTPS, дополнительные проверки безопасности и резервное копирование. Скрипты не используют Docker.
