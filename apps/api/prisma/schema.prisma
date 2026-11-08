@@ -5,11 +5,38 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-enum SystemRole { SUPER_ADMIN ADMIN USER }
-enum ProjectRole { OWNER MANAGER MEMBER VIEWER }
-enum ProjectStatus { PLANNED ACTIVE ON_HOLD COMPLETED ARCHIVED }
-enum Priority { LOW NORMAL HIGH CRITICAL }
-enum NodeType { NOTE TEXT SHAPE TASK IMAGE GROUP }
+enum SystemRole {
+  SUPER_ADMIN
+  ADMIN
+  USER
+}
+enum ProjectRole {
+  OWNER
+  MANAGER
+  MEMBER
+  VIEWER
+}
+enum ProjectStatus {
+  PLANNED
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  ARCHIVED
+}
+enum Priority {
+  LOW
+  NORMAL
+  HIGH
+  CRITICAL
+}
+enum NodeType {
+  NOTE
+  TEXT
+  SHAPE
+  TASK
+  IMAGE
+  GROUP
+}
 model User {
   id           String   @id @default(uuid()) @db.Uuid
   username     String   @unique @db.VarChar(64)
