@@ -19,8 +19,8 @@ if (-not (Test-Path $envFile)) {
   $connection = 'postgresql://'+[uri]::EscapeDataString($dbUser)+':'+[uri]::EscapeDataString($dbPass)+'@127.0.0.1:5432/taskboard?schema=public'
   $contents = @("DATABASE_URL=$connection",'ADMIN_USERNAME=admin',"ADMIN_PASSWORD=$adminPass",'WEB_ORIGIN=http://localhost:5173','HOST=127.0.0.1','PORT=3001')
   [IO.File]::WriteAllLines($envFile,$contents,[Text.UTF8Encoding]::new($false))
-  Write-Host "Local administrator: admin / $adminPass" -ForegroundColor Yellow
-  Write-Host 'Save these credentials securely. They are also in apps/api/.env (gitignored).'
+  Write-Host "Initial administrator login: admin" -ForegroundColor Yellow
+  Write-Host "Initial password is stored in apps/api/.env as ADMIN_PASSWORD. Do not publish or commit this file."
 } else { Write-Host 'Existing apps/api/.env retained.' }
 $psql = (Get-Command psql -ErrorAction SilentlyContinue).Source
 if (-not $psql) {
@@ -36,10 +36,13 @@ $env:PGPASSWORD=[uri]::UnescapeDataString($parts[1])
 try {
   $dbUser=[uri]::UnescapeDataString($parts[0])
   $result = & $psql -h 127.0.0.1 -p 5432 -U $dbUser -d postgres -tAc "SELECT 1 FROM pg_database WHERE datname='taskboard';"
-  if ($LASTEXITCODE -ne 0) { throw 'Unable to connect to PostgreSQL. Check service and password.' }
-  if ($result.Trim() -ne '1') {
+  if ($LASTEXITCODE -ne 0) { throw 'Unable to connect to PostgreSQL. Check that the PostgreSQL service is running, port 5432 is open and credentials in apps/api/.env are correct.' }
+  # psql produces no rows when taskboard does not exist. In PowerShell this is $null.
+  $found = @($result | Where-Object { $_ -ne $null -and $_.ToString().Trim() -eq '1' }).Count -gt 0
+  if (-not $found) {
     & $psql -h 127.0.0.1 -p 5432 -U $dbUser -d postgres -c 'CREATE DATABASE taskboard;'
     if ($LASTEXITCODE -ne 0) { throw 'Cannot create database: use a PostgreSQL user with CREATEDB or create taskboard via pgAdmin.' }
+    Write-Host 'Database taskboard created.' -ForegroundColor Green
   }
 } finally { Remove-Item Env:\PGPASSWORD -ErrorAction SilentlyContinue }
 npm install
