@@ -1,0 +1,13 @@
+{
+  "name": "company-taskboard",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev:api": "npm run dev -w @taskboard/api",
+    "dev:web": "npm run dev -w @taskboard/web",
+    "build": "npm run build -w @taskboard/api && npm run build -w @taskboard/web",
+    "typecheck": "npm run typecheck -w @taskboard/api && npm run typecheck -w @taskboard/web"
+  }
+}

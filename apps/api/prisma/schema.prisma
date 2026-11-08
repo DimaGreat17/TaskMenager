@@ -1,0 +1,127 @@
+generator client {
+  provider = "prisma-client-js"
+}
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+enum SystemRole { SUPER_ADMIN ADMIN USER }
+enum ProjectRole { OWNER MANAGER MEMBER VIEWER }
+enum ProjectStatus { PLANNED ACTIVE ON_HOLD COMPLETED ARCHIVED }
+enum Priority { LOW NORMAL HIGH CRITICAL }
+enum NodeType { NOTE TEXT SHAPE TASK IMAGE GROUP }
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  username     String   @unique @db.VarChar(64)
+  fullName     String   @db.VarChar(200)
+  passwordHash String
+  systemRole   SystemRole @default(USER)
+  isActive     Boolean @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+  sessions     Session[]
+  memberships  ProjectMember[]
+  ownedProjects Project[] @relation("ProjectOwner")
+  assignedTasks Task[] @relation("Assignee")
+  reportedTasks Task[] @relation("Reporter")
+}
+model Session {
+  id String @id @default(uuid()) @db.Uuid
+  tokenHash String @unique
+  userId String @db.Uuid
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  expiresAt DateTime
+  revokedAt DateTime?
+  createdAt DateTime @default(now())
+  @@index([userId,expiresAt])
+}
+model Project {
+  id String @id @default(uuid()) @db.Uuid
+  code String @unique @db.VarChar(24)
+  name String @db.VarChar(200)
+  description String @default("")
+  status ProjectStatus @default(ACTIVE)
+  ownerId String @db.Uuid
+  owner User @relation("ProjectOwner",fields:[ownerId],references:[id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  members ProjectMember[]
+  columns KanbanColumn[]
+  tasks Task[]
+  boards Board[]
+}
+model ProjectMember {
+  projectId String @db.Uuid
+  userId String @db.Uuid
+  role ProjectRole @default(MEMBER)
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  user User @relation(fields:[userId],references:[id],onDelete:Cascade)
+  @@id([projectId,userId])
+  @@index([userId])
+}
+model KanbanColumn {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  name String @db.VarChar(100)
+  position Int
+  isTerminal Boolean @default(false)
+  tasks Task[]
+  @@unique([projectId,position])
+}
+model Task {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  columnId String @db.Uuid
+  column KanbanColumn @relation(fields:[columnId],references:[id])
+  title String @db.VarChar(255)
+  description String @default("")
+  priority Priority @default(NORMAL)
+  assigneeId String? @db.Uuid
+  assignee User? @relation("Assignee",fields:[assigneeId],references:[id])
+  reporterId String @db.Uuid
+  reporter User @relation("Reporter",fields:[reporterId],references:[id])
+  dueAt DateTime?
+  position Float @default(0)
+  version Int @default(1)
+  completedAt DateTime?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  @@index([projectId,columnId,position])
+  @@index([assigneeId,dueAt])
+}
+model Board {
+  id String @id @default(uuid()) @db.Uuid
+  projectId String @db.Uuid
+  project Project @relation(fields:[projectId],references:[id],onDelete:Cascade)
+  name String @db.VarChar(200)
+  nodes BoardNode[]
+  edges BoardEdge[]
+  createdAt DateTime @default(now())
+  @@index([projectId])
+}
+model BoardNode {
+  id String @id @default(uuid()) @db.Uuid
+  boardId String @db.Uuid
+  board Board @relation(fields:[boardId],references:[id],onDelete:Cascade)
+  type NodeType
+  taskId String? @db.Uuid
+  content String @default("")
+  x Float @default(0)
+  y Float @default(0)
+  width Float @default(220)
+  height Float @default(120)
+  color String @default("#fef08a")
+  version Int @default(1)
+  @@index([boardId])
+}
+model BoardEdge {
+  id String @id @default(uuid()) @db.Uuid
+  boardId String @db.Uuid
+  board Board @relation(fields:[boardId],references:[id],onDelete:Cascade)
+  sourceId String @db.Uuid
+  targetId String @db.Uuid
+  label String @default("")
+  @@index([boardId])
+}
