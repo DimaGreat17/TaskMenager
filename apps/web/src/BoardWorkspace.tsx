@@ -139,7 +139,11 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
    const positions=changes.filter((c):c is Extract<NodeChange,{type:'position'}>=>c.type==='position'&&!!c.position);
    if(positions.length)setDragPos(old=>{const next={...old};for(const c of positions)if(c.position)next[c.id]=c.position;return next});
    const selections=changes.filter((c):c is Extract<NodeChange,{type:'select'}>=>c.type==='select');
-   if(selections.length)setSelected(old=>{const result=new Set(old);for(const c of selections)c.selected?result.add(c.id):result.delete(c.id);return [...result]});
+   if(selections.length)setSelected(old=>{const result=new Set(old);for(const c of selections)c.selected?result.add(c.id):result.delete(c.id);const ids=[...result];return ids.length===old.length&&ids.every(id=>old.includes(id))?old:ids});
+ },[]);
+ const onSelectionChange=useCallback(({nodes}: {nodes:Node[]})=>{
+   const ids=nodes.map(n=>n.id);
+   setSelected(current=>current.length===ids.length&&current.every(id=>ids.includes(id))?current:ids);
  },[]);
  const onDragStop:NodeMouseHandler=useCallback(async(_,node)=>{
    const b=boardRef.current,source=b?.nodes.find(n=>n.id===node.id);if(!b||!source)return;
@@ -210,7 +214,7 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
    <ReactFlow<Node,Edge> nodes={renderedNodes} edges={renderedEdges} onInit={instance=>{flow.current=instance}}
     onNodesChange={onNodesChange} onNodeDragStop={onDragStop} onConnect={onConnect}
     onNodeClick={(_,n)=>{if(!selected.includes(n.id))setSelected([n.id]);setMenu(null)}}
-    onSelectionChange={({nodes})=>setSelected(nodes.map(n=>n.id))}
+    onSelectionChange={onSelectionChange}
     onNodeDoubleClick={(_,n)=>{const item=boardRef.current?.nodes.find(x=>x.id===n.id);if(!item)return;if(item.type==='TASK'){const t=tasks.find(t=>t.id===item.taskId);if(t)onEditTask(t)}else if(item.type!=='GROUP')setDialog({node:item,type:item.type})}}
     onNodeContextMenu={(e,n)=>{e.preventDefault();setSelected(old=>old.includes(n.id)?old:[n.id]);context(e)}}
     onPaneContextMenu={context} onPaneClick={()=>{setSelected([]);setMenu(null)}}
