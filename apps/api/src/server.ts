@@ -142,6 +142,42 @@ app.get('/api/v1/boards/:id',asyncRoute(async(req,res)=>{
   if(!await membership(req,board.projectId))return deny(res);
   res.json(board);
 }));
+
+const canvasNodeSchema=z.object({
+ id:z.string().uuid(),type:z.enum(['NOTE','TEXT','SHAPE','TASK','GROUP']),
+ taskId:z.string().uuid().nullable().optional(),groupId:z.string().uuid().nullable().optional(),
+ content:z.string().max(5000),x:z.number().finite().min(-100000).max(100000),
+ y:z.number().finite().min(-100000).max(100000),width:z.number().finite().min(80).max(8000),
+ height:z.number().finite().min(40).max(8000),color:z.string().regex(/^#[a-fA-F0-9]{6}$/)
+});
+const canvasEdgeSchema=z.object({id:z.string().uuid(),sourceId:z.string().uuid(),targetId:z.string().uuid(),label:z.string().max(120)});
+app.put('/api/v1/boards/:id/canvas',asyncRoute(async(req,res)=>{
+ const board=await db.board.findUnique({where:{id:req.params.id},select:{id:true,projectId:true,version:true}});
+ if(!board){res.status(404).json({error:'Not found'});return;}
+ if(!await membership(req,board.projectId,true))return deny(res);
+ const x=z.object({version:z.number().int().positive(),nodes:z.array(canvasNodeSchema).max(500),edges:z.array(canvasEdgeSchema).max(1000)}).parse(req.body);
+ const nodeIds=new Set(x.nodes.map(n=>n.id));
+ if(nodeIds.size!==x.nodes.length||new Set(x.edges.map(e=>e.id)).size!==x.edges.length){res.status(400).json({error:'Duplicate node or edge IDs'});return;}
+ const groups=new Set(x.nodes.filter(n=>n.type==='GROUP').map(n=>n.id));
+ if(x.nodes.some(n=>n.groupId&&(!groups.has(n.groupId)||n.groupId===n.id))){res.status(400).json({error:'Invalid group reference'});return;}
+ if(x.edges.some(e=>!nodeIds.has(e.sourceId)||!nodeIds.has(e.targetId)||e.sourceId===e.targetId)){res.status(400).json({error:'Invalid edge reference'});return;}
+ const taskIds=[...new Set(x.nodes.filter(n=>n.type==='TASK'&&n.taskId).map(n=>n.taskId!))];
+ if(x.nodes.some(n=>(n.type==='TASK')!==!!n.taskId)){res.status(400).json({error:'Invalid task node'});return;}
+ if(taskIds.length){const valid=await db.task.count({where:{id:{in:taskIds},projectId:board.projectId}});if(valid!==taskIds.length){res.status(400).json({error:'A task belongs to another project'});return;}}
+ try{
+ const result=await db.$transaction(async tx=>{
+   const updated=await tx.board.updateMany({where:{id:board.id,version:x.version},data:{version:{increment:1}}});
+   if(!updated.count)return null;
+   await tx.boardEdge.deleteMany({where:{boardId:board.id}});
+   await tx.boardNode.deleteMany({where:{boardId:board.id}});
+   if(x.nodes.length)await tx.boardNode.createMany({data:x.nodes.map(n=>({id:n.id,boardId:board.id,type:n.type,taskId:n.taskId||null,groupId:n.groupId||null,content:n.content,x:n.x,y:n.y,width:n.width,height:n.height,color:n.color,version:1}))});
+   if(x.edges.length)await tx.boardEdge.createMany({data:x.edges.map(e=>({...e,boardId:board.id}))});
+   return {version:x.version+1};
+ },{isolationLevel:'Serializable',timeout:15000});
+ if(!result){res.status(409).json({error:'Board changed. Reload before editing.'});return;}
+ res.json(result);
+ }catch(err){if(typeof err==='object'&&err&&'code'in err&&err.code==='P2034'){res.status(409).json({error:'Concurrent board edit. Reload and retry.'});return;}throw err;}
+}));
 app.post('/api/v1/boards/:id/nodes',asyncRoute(async(req,res)=>{
   const board=await db.board.findUnique({where:{id:req.params.id}});
   if(!board){res.status(404).json({error:'Not found'});return;}

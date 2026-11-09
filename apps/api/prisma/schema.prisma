@@ -128,6 +128,7 @@ model Board {
   name String @db.VarChar(200)
   nodes BoardNode[]
   edges BoardEdge[]
+  version Int @default(1)
   createdAt DateTime @default(now())
   @@index([projectId])
 }
@@ -136,6 +137,7 @@ model BoardNode {
   boardId String @db.Uuid
   board Board @relation(fields:[boardId],references:[id],onDelete:Cascade)
   type NodeType
+  groupId String? @db.Uuid
   taskId String? @db.Uuid
   content String @default("")
   x Float @default(0)
@@ -145,6 +147,7 @@ model BoardNode {
   color String @default("#fef08a")
   version Int @default(1)
   @@index([boardId])
+  @@index([boardId,groupId])
 }
 model BoardEdge {
   id String @id @default(uuid()) @db.Uuid
