@@ -10,7 +10,8 @@ const db = new PrismaClient();
 const app = express();
 app.disable('x-powered-by');
 app.use(helmet()); app.use(express.json({limit:'512kb'})); app.use(cookieParser());
-const origin = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\\/$/, '');
+const configuredOrigin = process.env.WEB_ORIGIN || 'http://localhost:5173';
+const origin = configuredOrigin.endsWith('/') ? configuredOrigin.slice(0, -1) : configuredOrigin;
 const allowedOrigins = new Set([origin]);
 // For a local developer session, both loopback hostnames point to the same machine.
 // Never extend this exception to externally configured or production origins.
