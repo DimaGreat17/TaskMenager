@@ -71,3 +71,31 @@ aside .nav{display:block;border:1px solid transparent;border-radius:9px;padding:
 .canvas-warning button{padding:5px;background:#923c46}
 .board-loading{padding:26px;color:#93a4ba}
 @media(max-width:700px){.canvas-editor{flex-direction:column}.canvas-editor .board-tools{width:100%;max-height:none;flex-direction:row;flex-wrap:wrap}.canvas-editor .board-stage{width:100%;height:65vh}}
+
+/* Compact native-theme-independent date calendar */
+.deadline-field{position:relative;display:flex;flex-direction:column;gap:8px;color:#c3d1e3;font-size:13px;font-weight:600;min-width:0}
+.deadline-picker{position:relative;min-width:0}
+.deadline-fields{display:flex;align-items:stretch;gap:8px;min-width:0}
+.deadline-date-trigger,.deadline-time,.deadline-clear{border:1px solid #40516c;background:#0e192c;color:#f1f5f9;border-radius:8px;min-height:43px}
+.deadline-date-trigger{display:flex;flex:1;min-width:0;align-items:center;justify-content:flex-start;padding:9px 11px;gap:9px;font-size:13px;font-weight:500}
+.deadline-date-trigger span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.deadline-time{display:flex;align-items:center;gap:3px;padding:0 7px;min-width:105px}
+.deadline-time input{width:77px!important;min-width:0;padding:0!important;border:0!important;background:transparent!important;color:#e2e8f0!important;font-size:13px!important;color-scheme:dark}
+.deadline-time svg{flex-shrink:0;color:#93a4ba}
+.deadline-clear{width:36px;padding:7px;color:#94a3b8}
+.deadline-popover{position:absolute;z-index:70;top:calc(100% + 7px);right:0;width:min(306px,calc(100vw - 45px));padding:15px;background:#17263e;border:1px solid #405773;border-radius:12px;box-shadow:0 18px 50px #0009;font-weight:400}
+.deadline-month{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;text-transform:capitalize;font-size:14px}
+.deadline-month>div{display:flex;gap:3px}
+.deadline-month button{width:31px;height:31px;background:transparent;padding:6px;color:#cbd5e1}
+.deadline-month button:hover{background:#2d4567}
+.deadline-grid{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:3px}
+.deadline-weekday{text-align:center;color:#8ea6c4;font-size:11px;padding:7px 0}
+.deadline-day{height:34px;min-width:0;padding:0;border:1px solid transparent;border-radius:7px;background:transparent;color:#e2e8f0;font-weight:500;font-size:12px}
+.deadline-day:hover{background:#334d72}
+.deadline-day.other-month{color:#637b99}
+.deadline-day.today{border-color:#6687ad}
+.deadline-day.selected{background:#2563eb;border-color:#60a5fa;color:#fff}
+.deadline-actions{display:flex;justify-content:space-between;border-top:1px solid #354963;margin-top:12px;padding-top:11px}
+.deadline-actions button{background:transparent;color:#93c5fd;padding:6px 7px;font-size:12px}
+.deadline-actions button:hover{background:#284467}
+@media(max-width:650px){.deadline-popover{left:0;right:auto}.deadline-fields{flex-wrap:wrap}.deadline-date-trigger{min-width:160px}}

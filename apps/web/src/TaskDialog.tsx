@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';import {X,Plus,Save,Send,Trash2,CheckCircle2} from 'lucide-react';
+import React,{useEffect,useState} from 'react';import DeadlinePicker from './DeadlinePicker';import {X,Plus,Save,Send,Trash2,CheckCircle2} from 'lucide-react';
 export type ChecklistItem={id:string;text:string;done:boolean};
 export type TaskFormValue={
   title:string;description:string;priority:string;columnId:string;assigneeId:string|null;
@@ -39,7 +39,7 @@ export default function TaskDialog({task,initialColumnId,columns,members,onClose
       <label>Статус<select value={columnId} onChange={e=>setColumnId(e.target.value)}>{columns.map(c=><option key={c.id} value={c.id}>{c.name}</option>)}</select></label>
       <label>Приоритет<select value={priority} onChange={e=>setPriority(e.target.value)}><option value="LOW">Низкий</option><option value="NORMAL">Обычный</option><option value="HIGH">Высокий</option><option value="CRITICAL">Критический</option></select></label>
       <label>Исполнитель<select value={assigneeId} onChange={e=>setAssigneeId(e.target.value)}><option value="">Не назначен</option>{members.map(m=><option key={m.userId} value={m.userId}>{m.user.fullName}</option>)}</select></label>
-      <label>Срок<input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)}/></label>
+      <div className="deadline-field"><span>Срок выполнения</span><DeadlinePicker value={dueAt} onChange={setDueAt} disabled={busy}/></div>
     </div>
     <div className="task-check-heading"><strong>Чек-лист</strong><span>{checklist.filter(c=>c.done).length}/{checklist.length} выполнено</span></div>
     <div className="task-check-list">{checklist.map(item=><div className="task-check-row" key={item.id}><input aria-label="Отметить выполненным" type="checkbox" checked={item.done} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,done:e.target.checked}:c))}/><input aria-label="Пункт чек-листа" maxLength={300} value={item.text} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,text:e.target.value}:c))}/><button type="button" className="task-icon-button" aria-label="Удалить пункт" title="Удалить пункт чек-листа" onClick={()=>setChecklist(a=>a.filter(c=>c.id!==item.id))}><Trash2 size={16}/></button></div>)}</div>
