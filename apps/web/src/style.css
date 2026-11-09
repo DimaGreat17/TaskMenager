@@ -102,3 +102,11 @@ aside .nav{display:block;border:1px solid transparent;border-radius:9px;padding:
 
 .canvas-inline-note{display:block;width:100%;height:100%;min-height:90px;padding:0;margin:0;border:0;outline:none;background:transparent;color:#172338;font:inherit;font-size:13px;line-height:1.45;resize:none;overflow:auto;cursor:text}
 .canvas-editor .react-flow__node:has(.canvas-inline-note){cursor:text}
+
+.column .taskactions .task-delete-icon{color:#fca5a5;border-color:#6c3b49}
+.column .taskactions .task-delete-icon:hover{background:#713343;color:#fff}
+.task-delete-content{padding:22px 30px;color:#e2e8f0;line-height:1.55}
+.task-delete-content strong{overflow-wrap:anywhere}
+.task-delete-content p{font-size:14px;color:#afbed1;margin:12px 0 0}
+.btn-danger{background:#b91c1c;color:#fff}
+.btn-danger:hover{background:#991b1b}
