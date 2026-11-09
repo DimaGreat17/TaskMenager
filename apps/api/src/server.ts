@@ -136,6 +136,44 @@ app.patch('/api/v1/tasks/:id',asyncRoute(async(req,res)=>{
   if(!result.count){res.status(409).json({error:'Outdated version'});return;}
   res.json(await db.task.findUnique({where:{id:task.id}}));
 }));
+app.delete('/api/v1/tasks/:id',asyncRoute(async(req,res)=>{
+  const task=await db.task.findUnique({where:{id:req.params.id},select:{id:true,projectId:true,version:true}});
+  if(!task){res.status(404).json({error:'Task not found'});return;}
+  if(!await membership(req,task.projectId,true))return deny(res);
+  const expectedVersion=Number(req.query.version);
+  if(!Number.isSafeInteger(expectedVersion)||expectedVersion<1){
+    res.status(400).json({error:'Task version is required'});return;
+  }
+  if(expectedVersion!==task.version){
+    res.status(409).json({error:'Task was modified. Refresh before deleting.'});return;
+  }
+  const linked=await db.boardNode.findMany({
+    where:{taskId:task.id,board:{projectId:task.projectId}},
+    select:{id:true,boardId:true}
+  });
+  try{
+    await db.$transaction(async tx=>{
+      const match=await tx.task.findUnique({where:{id:task.id},select:{version:true}});
+      if(!match||match.version!==expectedVersion)throw new Error('TASK_VERSION_CONFLICT');
+      if(linked.length){
+        const nodeIds=linked.map(n=>n.id);
+        await tx.boardEdge.deleteMany({where:{OR:[{sourceId:{in:nodeIds}},{targetId:{in:nodeIds}}]}});
+        await tx.boardNode.deleteMany({where:{id:{in:nodeIds}}});
+        await tx.board.updateMany({where:{id:{in:[...new Set(linked.map(n=>n.boardId))]}},data:{version:{increment:1}}});
+      }
+      await tx.task.delete({where:{id:task.id}});
+    },{isolationLevel:'Serializable'});
+  }catch(e){
+    if(e instanceof Error&&e.message==='TASK_VERSION_CONFLICT'){
+      res.status(409).json({error:'Task was modified. Refresh before deleting.'});return;
+    }
+    if(typeof e==='object'&&e!==null&&'code' in e&&(e.code==='P2034'||e.code==='P2025')){
+      res.status(409).json({error:'Concurrent edit. Refresh before deleting.'});return;
+    }
+    throw e;
+  }
+  res.json({ok:true,id:task.id});
+}));
 app.get('/api/v1/tasks/:id/comments',asyncRoute(async(req,res)=>{
   const task=await db.task.findUnique({where:{id:req.params.id},select:{projectId:true}});
   if(!task){res.status(404).json({error:'Not found'});return;}
