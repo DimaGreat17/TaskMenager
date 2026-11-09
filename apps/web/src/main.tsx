@@ -24,7 +24,7 @@ const saveNode=async(data:{type:'NOTE'|'TEXT'|'SHAPE'|'TASK';content:string;task
  else{await api('/boards/'+id+'/nodes','POST',{type:data.type,content:data.content,taskId:data.taskId,x:120+Math.round(Math.random()*150),y:100+Math.round(Math.random()*150),color:data.color});}
  await openBoard();setNodeDialog(null);};
 const deleteNode=async()=>{if(!selectedNodeId||!selected?.boards?.length)return;try{await api('/boards/'+selected.boards[0].id+'/nodes/'+selectedNodeId,'DELETE');setSelectedNodeId(null);await openBoard();}catch(e){setError(String(e));}};
-const nodes:Node[]= (board?.nodes||[]).map(n=>({id:n.id,position:positions[n.id]||{x:n.x,y:n.y},data:{label:n.type==='TASK'?(tasks.find(t=>t.id===n.taskId)?.title||'Задача'):n.content||n.type},style:{background:n.type==='TASK'?'#dbeafe':n.color,border:'1px solid #64748b',borderRadius:10,padding:12,width:220,color:'#1e293b'}}));
+const nodes:Node[]= (board?.nodes||[]).map(n=>({id:n.id,selected:n.id===selectedNodeId,position:positions[n.id]||{x:n.x,y:n.y},data:{label:n.type==='TASK'?(tasks.find(t=>t.id===n.taskId)?.title||'Задача'):n.content||n.type},style:{background:n.type==='TASK'?'#dbeafe':n.color,border:'1px solid #64748b',borderRadius:10,padding:12,width:220,color:'#1e293b'}}));
 const edges:Edge[]=(board?.edges||[]).map(e=>({id:e.id,source:e.sourceId,target:e.targetId,label:e.label}));
 const onNodesChange=async(changes:NodeChange[])=>{
   const changed=changes.filter((c):c is Extract<NodeChange,{type:'position'}>=>c.type==='position'&&!!c.position);

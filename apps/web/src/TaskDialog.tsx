@@ -1,4 +1,4 @@
-import React,{useEffect,useState} from 'react';
+import React,{useEffect,useState} from 'react';import {X,Plus,Save,Send,Trash2,CheckCircle2} from 'lucide-react';
 export type ChecklistItem={id:string;text:string;done:boolean};
 export type TaskFormValue={
   title:string;description:string;priority:string;columnId:string;assigneeId:string|null;
@@ -31,7 +31,7 @@ export default function TaskDialog({task,initialColumnId,columns,members,onClose
  const addCheck=()=>{const text=newItem.trim();if(!text)return;if(checklist.length>=100){setError('Не более 100 пунктов');return;}setChecklist(items=>[...items,{id:makeId(),text,done:false}]);setNewItem('')};
  return <div className="task-backdrop" onMouseDown={e=>{if(e.target===e.currentTarget&&!busy)onClose()}}>
   <section className="task-modal" role="dialog" aria-modal="true" aria-labelledby="task-modal-title">
-   <div className="task-modal-header"><div><div className="task-eyebrow">ПРОЕКТ · ЗАДАЧА</div><h2 id="task-modal-title">{task?'Редактирование задачи':'Новая задача'}</h2></div><button type="button" className="task-close" onClick={onClose} aria-label="Закрыть">×</button></div>
+   <div className="task-modal-header"><div><div className="task-eyebrow">ПРОЕКТ · ЗАДАЧА</div><h2 id="task-modal-title">{task?'Редактирование задачи':'Новая задача'}</h2></div><button type="button" className="task-close" onClick={onClose} aria-label="Закрыть" title="Закрыть форму"><X size={19}/></button></div>
    <form id="task-edit-form" onSubmit={submit} className="task-form">
     <label>Название задачи *<input autoFocus required maxLength={255} placeholder="Что необходимо выполнить?" value={title} onChange={e=>setTitle(e.target.value)}/></label>
     <label>Описание<textarea rows={5} maxLength={10000} placeholder="Цель, требования и ожидаемый результат…" value={description} onChange={e=>setDescription(e.target.value)}/></label>
@@ -42,12 +42,12 @@ export default function TaskDialog({task,initialColumnId,columns,members,onClose
       <label>Срок<input type="datetime-local" value={dueAt} onChange={e=>setDueAt(e.target.value)}/></label>
     </div>
     <div className="task-check-heading"><strong>Чек-лист</strong><span>{checklist.filter(c=>c.done).length}/{checklist.length} выполнено</span></div>
-    <div className="task-check-list">{checklist.map(item=><div className="task-check-row" key={item.id}><input aria-label="Отметить выполненным" type="checkbox" checked={item.done} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,done:e.target.checked}:c))}/><input aria-label="Пункт чек-листа" maxLength={300} value={item.text} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,text:e.target.value}:c))}/><button type="button" className="task-icon-button" aria-label="Удалить пункт" onClick={()=>setChecklist(a=>a.filter(c=>c.id!==item.id))}>×</button></div>)}</div>
-    <div className="task-add-check"><input maxLength={300} placeholder="Новый пункт чек-листа" value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCheck()}}}/><button type="button" onClick={addCheck}>Добавить</button></div>
+    <div className="task-check-list">{checklist.map(item=><div className="task-check-row" key={item.id}><input aria-label="Отметить выполненным" type="checkbox" checked={item.done} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,done:e.target.checked}:c))}/><input aria-label="Пункт чек-листа" maxLength={300} value={item.text} onChange={e=>setChecklist(a=>a.map(c=>c.id===item.id?{...c,text:e.target.value}:c))}/><button type="button" className="task-icon-button" aria-label="Удалить пункт" title="Удалить пункт чек-листа" onClick={()=>setChecklist(a=>a.filter(c=>c.id!==item.id))}><Trash2 size={16}/></button></div>)}</div>
+    <div className="task-add-check"><input maxLength={300} placeholder="Новый пункт чек-листа" value={newItem} onChange={e=>setNewItem(e.target.value)} onKeyDown={e=>{if(e.key==='Enter'){e.preventDefault();addCheck()}}}/><button type="button" onClick={addCheck} title="Добавить новый пункт чек-листа"><Plus size={16}/> Добавить</button></div>
    </form>
-   {task&&<div className="task-comments"><h3>Комментарии</h3>{comments.length===0?<p className="task-dim">Комментариев пока нет</p>:comments.map(c=><div className="task-comment" key={c.id}><strong>{c.author.fullName}</strong><time>{new Date(c.createdAt).toLocaleString('ru-RU')}</time><p>{c.body}</p></div>)}<div className="task-add-comment"><textarea rows={2} maxLength={5000} placeholder="Написать комментарий…" value={commentText} onChange={e=>setCommentText(e.target.value)}/><button type="button" disabled={busy||!commentText.trim()} onClick={sendComment}>Отправить</button></div></div>}
+   {task&&<div className="task-comments"><h3>Комментарии</h3>{comments.length===0?<p className="task-dim">Комментариев пока нет</p>:comments.map(c=><div className="task-comment" key={c.id}><strong>{c.author.fullName}</strong><time>{new Date(c.createdAt).toLocaleString('ru-RU')}</time><p>{c.body}</p></div>)}<div className="task-add-comment"><textarea rows={2} maxLength={5000} placeholder="Написать комментарий…" value={commentText} onChange={e=>setCommentText(e.target.value)}/><button type="button" disabled={busy||!commentText.trim()} onClick={sendComment} title="Отправить комментарий"><Send size={16}/> Отправить</button></div></div>}
    {error&&<div className="task-error" role="alert">{error}</div>}
-   <div className="task-modal-footer"><button type="button" className="task-secondary" onClick={onClose} disabled={busy}>Отмена</button><button form="task-edit-form" type="submit" disabled={busy||!title.trim()}>{busy?'Сохранение…':task?'Сохранить изменения':'Создать задачу'}</button></div>
+   <div className="task-modal-footer"><button type="button" className="task-secondary" onClick={onClose} disabled={busy} title="Закрыть без сохранения">Отмена</button><button form="task-edit-form" type="submit" disabled={busy||!title.trim()}><Save size={16}/>{busy?'Сохранение…':task?'Сохранить изменения':'Создать задачу'}</button></div>
   </section>
  </div>;
 }
