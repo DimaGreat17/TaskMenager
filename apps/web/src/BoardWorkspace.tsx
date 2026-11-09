@@ -220,7 +220,7 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
     onPaneContextMenu={context} onPaneClick={()=>{setSelected([]);setMenu(null)}}
     selectionOnDrag panOnDrag={[1,2]} multiSelectionKeyCode="Shift" nodesConnectable={mode==='connect'}
     onMoveEnd={(_,v)=>setViewport(Math.round(v.zoom*100))} fitView>
-     <Background gap={20} color="#cbd5e1"/><MiniMap pannable zoomable/><Controls showInteractive={false}/>
+     <Background gap={20} color="#cbd5e1"/><MiniMap pannable zoomable/><Controls showInteractive={false} showFitView={false}/>
    </ReactFlow>
    <div className="board-zoom-indicator">{viewport}% {busy?' · Сохранение…':''}</div>
   </div>
