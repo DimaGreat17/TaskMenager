@@ -146,7 +146,7 @@ app.post('/api/v1/boards/:id/nodes',asyncRoute(async(req,res)=>{
   const board=await db.board.findUnique({where:{id:req.params.id}});
   if(!board){res.status(404).json({error:'Not found'});return;}
   if(!await membership(req,board.projectId,true))return deny(res);
-  const x=z.object({type:z.enum(['NOTE','TEXT','SHAPE','TASK']),content:z.string().max(5000).default(''),taskId:z.string().uuid().nullable().optional(),x:z.number().finite().default(0),y:z.number().finite().default(0)}).parse(req.body);
+  const x=z.object({type:z.enum(['NOTE','TEXT','SHAPE','TASK']),content:z.string().max(5000).default(''),taskId:z.string().uuid().nullable().optional(),x:z.number().finite().default(0),y:z.number().finite().default(0),color:z.string().regex(/^#[0-9a-fA-F]{6}$/).optional()}).parse(req.body);
   if(x.type==='TASK'){
     const task=x.taskId?await db.task.findUnique({where:{id:x.taskId}}):null;
     if(!task || task.projectId!==board.projectId){res.status(400).json({error:'Invalid task reference'});return;}
@@ -163,6 +163,15 @@ app.patch('/api/v1/boards/:boardId/nodes/:nodeId',asyncRoute(async(req,res)=>{
   const result=await db.boardNode.updateMany({where:{id:node.id,version},data:{...patch,version:{increment:1}}});
   if(!result.count){res.status(409).json({error:'Outdated version'});return;}
   res.json(await db.boardNode.findUnique({where:{id:node.id}}));
+}));
+app.delete('/api/v1/boards/:boardId/nodes/:nodeId',asyncRoute(async(req,res)=>{
+ const board=await db.board.findUnique({where:{id:req.params.boardId}});
+ if(!board){res.status(404).json({error:'Not found'});return;}
+ if(!await membership(req,board.projectId,true))return deny(res);
+ const node=await db.boardNode.findUnique({where:{id:req.params.nodeId}});
+ if(!node||node.boardId!==board.id){res.status(404).json({error:'Not found'});return;}
+ await db.$transaction([db.boardEdge.deleteMany({where:{boardId:board.id,OR:[{sourceId:node.id},{targetId:node.id}]}}),db.boardNode.delete({where:{id:node.id}})]);
+ res.json({ok:true});
 }));
 app.post('/api/v1/boards/:id/edges',asyncRoute(async(req,res)=>{
   const board=await db.board.findUnique({where:{id:req.params.id}});
