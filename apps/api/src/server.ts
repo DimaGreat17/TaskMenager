@@ -10,9 +10,22 @@ const db = new PrismaClient();
 const app = express();
 app.disable('x-powered-by');
 app.use(helmet()); app.use(express.json({limit:'512kb'})); app.use(cookieParser());
-const origin = process.env.WEB_ORIGIN || 'http://localhost:5173';
+const origin = (process.env.WEB_ORIGIN || 'http://localhost:5173').replace(/\\/$/, '');
+const allowedOrigins = new Set([origin]);
+// For a local developer session, both loopback hostnames point to the same machine.
+// Never extend this exception to externally configured or production origins.
+if (origin === 'http://localhost:5173' || origin === 'http://127.0.0.1:5173') {
+  allowedOrigins.add('http://localhost:5173');
+  allowedOrigins.add('http://127.0.0.1:5173');
+}
 app.use((req,res,next)=>{
-  if (!['GET','HEAD','OPTIONS'].includes(req.method) && req.get('origin') !== origin) {res.status(403).json({error:'Invalid origin'});return;}
+  if (!['GET','HEAD','OPTIONS'].includes(req.method)) {
+    const requestOrigin=req.get('origin');
+    if (!requestOrigin || !allowedOrigins.has(requestOrigin)) {
+      res.status(403).json({error:'Invalid origin. Check WEB_ORIGIN in apps/api/.env and reopen the app using that address.'});
+      return;
+    }
+  }
   next();
 });
 type UserInfo = {id:string;username:string;fullName:string;systemRole:SystemRole};
