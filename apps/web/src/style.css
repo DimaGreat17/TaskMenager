@@ -53,3 +53,21 @@ aside .nav{display:block;border:1px solid transparent;border-radius:9px;padding:
 .board-tools .tool-btn:disabled{opacity:.28}
 .board-tools .tool-btn[title]:hover::after,.board-tools .tool-btn[title]:focus-visible::after{content:attr(title);position:absolute;z-index:30;left:calc(100% + 12px);top:50%;transform:translateY(-50%);white-space:normal;width:max-content;max-width:220px;min-width:130px;text-align:left;background:#0a1425;color:#f8fafc;border:1px solid #49617e;border-radius:8px;padding:8px 11px;font-size:12px;line-height:1.45;box-shadow:0 8px 30px #0007;pointer-events:none}
 @media(max-width:650px){.board-tools .tool-btn[title]:hover::after,.board-tools .tool-btn[title]:focus-visible::after{left:50%;top:calc(100% + 9px);transform:translateX(-50%)}}
+
+/* Advanced visual board editor */
+.canvas-editor{display:flex;align-items:flex-start;gap:10px;position:relative}
+.canvas-editor .board-tools{max-height:calc(100vh - 235px);overflow-y:auto;scrollbar-width:thin}
+.canvas-editor .board-stage{flex:1;min-width:0;position:relative;height:calc(100vh - 245px);min-height:470px;background:#f1f5f9;border:1px solid #64748b;border-radius:12px;overflow:hidden}
+.canvas-editor .react-flow__minimap{border-radius:8px;border:1px solid #cbd5e1}
+.canvas-editor .react-flow__node{white-space:pre-wrap}
+.canvas-block-text{font-size:13px;line-height:1.45;max-height:100%;overflow:hidden}
+.canvas-group-label{font-size:13px;font-weight:700;color:#25517e;text-transform:uppercase;letter-spacing:.03em}
+.canvas-task-detail{font-size:11px;color:#64748b;margin-top:8px}
+.board-zoom-indicator{position:absolute;right:14px;top:12px;z-index:10;background:#fff;color:#334155;border:1px solid #cbd5e1;border-radius:7px;font-size:12px;padding:6px 9px}
+.board-context{position:fixed;z-index:1600;background:#102038;border:1px solid #496482;border-radius:11px;box-shadow:0 18px 42px #0008;padding:6px;display:grid;min-width:210px}
+.board-context button{background:transparent;display:flex;align-items:center;justify-content:flex-start;gap:10px;text-align:left;padding:9px 11px;font-size:13px}
+.board-context button:not(:disabled):hover{background:#29476d}
+.canvas-warning{position:absolute;right:18px;bottom:16px;z-index:15;display:flex;align-items:center;gap:8px;background:#6f2931;color:#fff;padding:9px 11px;border-radius:9px;font-size:12px;max-width:300px}
+.canvas-warning button{padding:5px;background:#923c46}
+.board-loading{padding:26px;color:#93a4ba}
+@media(max-width:700px){.canvas-editor{flex-direction:column}.canvas-editor .board-tools{width:100%;max-height:none;flex-direction:row;flex-wrap:wrap}.canvas-editor .board-stage{width:100%;height:65vh}}
