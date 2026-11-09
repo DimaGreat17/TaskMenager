@@ -99,3 +99,6 @@ aside .nav{display:block;border:1px solid transparent;border-radius:9px;padding:
 .deadline-actions button{background:transparent;color:#93c5fd;padding:6px 7px;font-size:12px}
 .deadline-actions button:hover{background:#284467}
 @media(max-width:650px){.deadline-popover{left:0;right:auto}.deadline-fields{flex-wrap:wrap}.deadline-date-trigger{min-width:160px}}
+
+.canvas-inline-note{display:block;width:100%;height:100%;min-height:90px;padding:0;margin:0;border:0;outline:none;background:transparent;color:#172338;font:inherit;font-size:13px;line-height:1.45;resize:none;overflow:auto;cursor:text}
+.canvas-editor .react-flow__node:has(.canvas-inline-note){cursor:text}

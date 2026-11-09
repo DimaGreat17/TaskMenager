@@ -25,6 +25,9 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
  const [selected,setSelected]=useState<string[]>([]);
  const [dragPos,setDragPos]=useState<Record<string,{x:number;y:number}>>({});
  const [dialog,setDialog]=useState<{node:CanvasNode|null;type:'NOTE'|'TEXT'|'SHAPE'|'TASK'}|null>(null);
+ const [editingNoteId,setEditingNoteId]=useState<string|null>(null);
+ const [noteDraft,setNoteDraft]=useState('');
+ const skipBlurFor=useRef<string|null>(null);
  const [menu,setMenu]=useState<{x:number;y:number;pasteX:number;pasteY:number}|null>(null);
  const [clipboard,setClipboard]=useState<Snapshot|null>(null);
  const [historyCount,setHistoryCount]=useState({undo:0,redo:0});
@@ -130,10 +133,39 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
    if(await commit({nodes:prior?b.nodes.map(n=>n.id===prior.id?node:n):[...b.nodes,node],edges:b.edges})){setDialog(null);setSelected([node.id]);}
    else throw Error('Не удалось сохранить блок');
  };
+ const beginNoteEdit=useCallback((note:CanvasNode)=>{
+   skipBlurFor.current=null;setNoteDraft(note.content);setEditingNoteId(note.id);
+   setSelected([note.id]);setMode('select');setMenu(null);
+ },[]);
+ const saveInlineNote=useCallback(async(id:string,content:string)=>{
+   if(skipBlurFor.current===id){skipBlurFor.current=null;return;}
+   const b=boardRef.current;const old=b?.nodes.find(n=>n.id===id);
+   if(!b||!old){setEditingNoteId(null);return;}
+   if(old.content===content){setEditingNoteId(null);return;}
+   const success=await commit({nodes:b.nodes.map(n=>n.id===id?{...n,content}:n),edges:b.edges});
+   if(success)setEditingNoteId(null);
+ },[commit]);
+ const createInlineNote=useCallback(async()=>{
+   const b=boardRef.current;if(!b||busyRef.current)return;
+   const index=b.nodes.length;
+   const note:CanvasNode={id:newId(),type:'NOTE',taskId:null,groupId:null,content:'',x:160+(index%6)*28,y:120+(index%6)*28,width:240,height:160,color:'#fef08a',version:1};
+   if(await commit({nodes:[...b.nodes,note],edges:b.edges}))beginNoteEdit(note);
+ },[commit,beginNoteEdit]);
  const renderedNodes:Node[]=useMemo(()=>!board?[]:board.nodes.map(n=>{
    const group=n.type==='GROUP',task=tasks.find(t=>t.id===n.taskId);
-   return {id:n.id,position:dragPos[n.id]||{x:n.x,y:n.y},selected:selected.includes(n.id),data:{label:group?<div className="canvas-group-label">{n.content||'Группа'}</div>:n.type==='TASK'?<div><strong>{task?.title||'Задача удалена'}</strong><div className="canvas-task-detail">{task?.priority||''}{task?.assignee?' · '+task.assignee.fullName:''}</div></div>:<div className="canvas-block-text">{n.content||'Пустой блок'}</div>},style:{width:n.width,height:n.height,borderRadius:group?14:10,border:group?'2px dashed #6a96c4':'1px solid #8794a9',background:group?'rgba(161,198,240,.12)':n.type==='TASK'?'#dbeafe':n.color,color:'#1e293b',boxShadow:group?'none':'0 5px 17px #0002',padding:group?'8px 12px':12,zIndex:group?-1:1},draggable:mode==='select',connectable:mode==='connect'};
- }),[board,dragPos,selected,mode,tasks]);
+   return {id:n.id,position:dragPos[n.id]||{x:n.x,y:n.y},selected:selected.includes(n.id),data:{label:n.type==='NOTE'&&editingNoteId===n.id?
+    <textarea autoFocus aria-label="Редактирование заметки" placeholder="Напишите заметку…" maxLength={5000}
+      className="canvas-inline-note nodrag nowheel nopan" value={noteDraft}
+      onChange={e=>setNoteDraft(e.target.value)}
+      onPointerDown={e=>e.stopPropagation()} onDoubleClick={e=>e.stopPropagation()}
+      onKeyDown={e=>{
+        e.stopPropagation();
+        if(e.key==='Escape'){e.preventDefault();skipBlurFor.current=n.id;setEditingNoteId(null);}
+        else if(e.key==='Enter'&&(e.ctrlKey||e.metaKey)){e.preventDefault();e.currentTarget.blur();}
+      }}
+      onBlur={e=>{void saveInlineNote(n.id,e.currentTarget.value)}}/>:
+    group?<div className="canvas-group-label">{n.content||'Группа'}</div>:n.type==='TASK'?<div><strong>{task?.title||'Задача удалена'}</strong><div className="canvas-task-detail">{task?.priority||''}{task?.assignee?' · '+task.assignee.fullName:''}</div></div>:<div className="canvas-block-text">{n.content||'Пустой блок'}</div>},style:{width:n.width,height:n.height,borderRadius:group?14:10,border:group?'2px dashed #6a96c4':'1px solid #8794a9',background:group?'rgba(161,198,240,.12)':n.type==='TASK'?'#dbeafe':n.color,color:'#1e293b',boxShadow:group?'none':'0 5px 17px #0002',padding:group?'8px 12px':12,zIndex:group?-1:1},draggable:mode==='select'&&editingNoteId!==n.id,connectable:mode==='connect'&&editingNoteId!==n.id};
+ }),[board,dragPos,selected,mode,tasks,editingNoteId,noteDraft,saveInlineNote]);
  const renderedEdges:Edge[]=useMemo(()=>board?board.edges.map(e=>({id:e.id,source:e.sourceId,target:e.targetId,label:e.label,animated:false})):[],[board]);
  const onNodesChange=useCallback((changes:NodeChange[])=>{
    const positions=changes.filter((c):c is Extract<NodeChange,{type:'position'}>=>c.type==='position'&&!!c.position);
@@ -160,12 +192,12 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
    if(b.edges.some(e=>e.sourceId===c.source&&e.targetId===c.target))return;
    await commit({nodes:b.nodes,edges:[...b.edges,{id:newId(),sourceId:c.source,targetId:c.target,label:''}]});
  },[commit]);
- const editSelected=()=>{const n=chosen()[0];if(!n)return;if(n.type==='TASK'){const task=tasks.find(t=>t.id===n.taskId);if(task)onEditTask(task)}else if(n.type!=='GROUP')setDialog({node:n,type:n.type});};
+ const editSelected=()=>{const n=chosen()[0];if(!n)return;if(n.type==='NOTE'){beginNoteEdit(n);return;}if(n.type==='TASK'){const task=tasks.find(t=>t.id===n.taskId);if(task)onEditTask(task)}else if(n.type!=='GROUP')setDialog({node:n,type:n.type});};
  const handlerRef=useRef({undo,redo,remove,copySelection,paste,duplicate,group,ungroup,editSelected});
  handlerRef.current={undo,redo,remove,copySelection,paste,duplicate,group,ungroup,editSelected};
  useEffect(()=>{
    const onKey=(e:KeyboardEvent)=>{
-     if(dialog||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement||e.target instanceof HTMLElement&&e.target.isContentEditable)return;
+     if(dialog||editingNoteId||e.target instanceof HTMLInputElement||e.target instanceof HTMLTextAreaElement||e.target instanceof HTMLSelectElement||e.target instanceof HTMLElement&&e.target.isContentEditable)return;
      const ctrl=e.ctrlKey||e.metaKey, k=e.key.toLowerCase();
      const h=handlerRef.current;
      if(ctrl&&k==='z'){e.preventDefault();e.shiftKey?h.redo():h.undo()}
@@ -179,7 +211,7 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
      else if(k==='escape'){setMenu(null);setSelected([])}
    };
    window.addEventListener('keydown',onKey);return()=>window.removeEventListener('keydown',onKey);
- },[dialog]);
+ },[dialog,editingNoteId]);
  if(!board)return <div className="board-loading">{error||'Загрузка визуальной доски…'}</div>;
  const groupChosen=chosen().filter(n=>n.type!=='GROUP'&&!n.groupId).length>=2;
  const hasGroup=chosen().some(n=>n.type==='GROUP');
@@ -187,7 +219,7 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
   {btn('Выбрать и перемещать · V',MousePointer2,()=>setMode('select'),false,mode==='select')}
   {btn('Соединить блоки стрелками',Network,()=>setMode('connect'),false,mode==='connect')}
   <span className="tool-divider"/>
-  {btn('Создать заметку',StickyNote,()=>setDialog({node:null,type:'NOTE'}))}
+  {btn('Создать заметку прямо на доске',StickyNote,()=>{void createInlineNote()},busy)}
   {btn('Текстовый блок',Type,()=>setDialog({node:null,type:'TEXT'}))}
   {btn('Фигура',Square,()=>setDialog({node:null,type:'SHAPE'}))}
   {btn('Связать с задачей',Link2,()=>setDialog({node:null,type:'TASK'}))}
@@ -215,7 +247,7 @@ export default function BoardWorkspace({boardId,tasks,onEditTask}:Props){
     onNodesChange={onNodesChange} onNodeDragStop={onDragStop} onConnect={onConnect}
     onNodeClick={(_,n)=>{if(!selected.includes(n.id))setSelected([n.id]);setMenu(null)}}
     onSelectionChange={onSelectionChange}
-    onNodeDoubleClick={(_,n)=>{const item=boardRef.current?.nodes.find(x=>x.id===n.id);if(!item)return;if(item.type==='TASK'){const t=tasks.find(t=>t.id===item.taskId);if(t)onEditTask(t)}else if(item.type!=='GROUP')setDialog({node:item,type:item.type})}}
+    onNodeDoubleClick={(_,n)=>{const item=boardRef.current?.nodes.find(x=>x.id===n.id);if(!item)return;if(item.type==='NOTE'){beginNoteEdit(item)}else if(item.type==='TASK'){const t=tasks.find(t=>t.id===item.taskId);if(t)onEditTask(t)}else if(item.type!=='GROUP')setDialog({node:item,type:item.type})}}
     onNodeContextMenu={(e,n)=>{e.preventDefault();setSelected(old=>old.includes(n.id)?old:[n.id]);context(e)}}
     onPaneContextMenu={context} onPaneClick={()=>{setSelected([]);setMenu(null)}}
     selectionOnDrag panOnDrag={[1,2]} multiSelectionKeyCode="Shift" nodesConnectable={mode==='connect'}
